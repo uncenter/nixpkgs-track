@@ -1,36 +1,14 @@
-use std::fs;
-
-use chrono::prelude::*;
 use clap::Parser;
 use color_eyre::eyre::{Ok, Result};
-use etcetera::{choose_base_strategy, BaseStrategy};
-use git2::Repository;
-use git_tracker::Tracker;
-use reqwest::blocking::Client;
-use serde::Deserialize;
+
+use chrono::Utc;
+use nixpkgs_track::{fetch::fetch_nixpkgs_pull_request, tracker::NixpkgsTracker};
+
 use tabled::{
 	settings::{object::Rows, style::BorderSpanCorrection, Disable, Panel, Style},
 	Table, Tabled,
 };
 use yansi::{hyperlink::HyperlinkExt, Paint};
-
-#[derive(Clone, Debug, Deserialize)]
-struct User {
-	login: String,
-	url: String,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct PullRequest {
-	html_url: String,
-	number: u64,
-	title: String,
-	user: User,
-	created_at: DateTime<Utc>,
-	merged_at: Option<DateTime<Utc>>,
-	merged: bool,
-	merge_commit_sha: Option<String>,
-}
 
 #[derive(Tabled, Debug)]
 #[tabled(rename_all = "PascalCase")]
@@ -38,6 +16,10 @@ struct BranchStatus {
 	branch: String,
 	#[tabled(display_with = "display_branch_status")]
 	has_pull_request: bool,
+}
+
+fn display_branch_status(b: &bool) -> String {
+	if *b { "✅" } else { "🚫" }.to_string()
 }
 
 #[derive(Parser)]
@@ -50,42 +32,12 @@ struct Cli {
 	token: String,
 }
 
-fn display_branch_status(b: &bool) -> String {
-	if *b { "✅" } else { "🚫" }.to_string()
-}
-
 fn main() -> Result<()> {
 	let args = Cli::parse();
 	color_eyre::install()?;
 
-	let nixpkgs_path = choose_base_strategy()
-		.unwrap()
-		.cache_dir()
-		.join("nixpkgs-track/nixpkgs");
-
-	if !nixpkgs_path.exists() {
-		println!("Nixpkgs tracker repository doesn't exist. Cloning...");
-		fs::create_dir_all(&nixpkgs_path)?;
-		Repository::clone("https://github.com/NixOS/nixpkgs", &nixpkgs_path)?;
-	} else {
-		println!("Nixpkgs tracker repository already exists. Updating...");
-		let repo = Repository::open(&nixpkgs_path)?;
-		repo.find_remote("origin")?
-			.fetch(&["master"], None, None)?;
-		repo.checkout_head(None)?;
-	}
-
-	let tracker = Tracker::from_path(&nixpkgs_path.to_str().unwrap())?;
-
-	let client = Client::new();
-
-	let url: String = format!("https://api.github.com/repos/nixos/nixpkgs/pulls/{}", args.pull_request);
-	let pull_request = client
-		.get(&url)
-		.header("User-Agent", "nixpkgs-track")
-		.header("Authorization", format!("Bearer {}", args.token))
-		.send()?
-		.json::<PullRequest>()?;
+	let tracker = NixpkgsTracker::new()?;
+	let pull_request = fetch_nixpkgs_pull_request(args.pull_request, args.token)?;
 
 	let Some(commit_sha) = pull_request.merge_commit_sha else {
 		println!("This pull request is very old. I can't track it!");
