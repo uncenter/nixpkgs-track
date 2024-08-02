@@ -2,7 +2,7 @@ use clap::Parser;
 use color_eyre::eyre::{Ok, Result};
 
 use chrono::Utc;
-use nixpkgs_track::{fetch::fetch_nixpkgs_pull_request, tracker::NixpkgsTracker};
+use nixpkgs_track::{fetch::fetch_nixpkgs_pull_request, format_seconds_to_time_ago, tracker::NixpkgsTracker};
 
 use tabled::{
 	settings::{object::Rows, style::BorderSpanCorrection, Disable, Panel, Style},
@@ -47,21 +47,15 @@ fn main() -> Result<()> {
 	if pull_request.merged == false {
 		println!("This pull request hasn't been merged yet!")
 	} else {
-		println!("Pull request was merged {}.", {
-			let minutes_ago = Utc::now()
-				.signed_duration_since(pull_request.merged_at.unwrap())
-				.num_minutes();
-
-			match minutes_ago {
-				0 => "less than a minute ago".to_string(),
-				1 => "1 minute ago".to_string(),
-				m if m < 60 => format!("{} minutes ago", m),
-				h if h < 120 => "1 hour ago".to_string(),         // 60 <= h < 120
-				h if h < 1440 => format!("{} hours ago", h / 60), // 2 hours to 23 hours
-				d if d < 2880 => "1 day ago".to_string(),         // 1440 <= d < 2880
-				d => format!("{} days ago", d / 1440),            // 2 days and more
-			}
-		});
+		println!(
+			"Pull request was merged {} ago.",
+			format_seconds_to_time_ago(
+				Utc::now()
+					.signed_duration_since(pull_request.merged_at.unwrap())
+					.num_seconds()
+					.try_into()?
+			)
+		);
 
 		let mut branch_statuses: Vec<BranchStatus> = vec![];
 
