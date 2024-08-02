@@ -29,7 +29,7 @@ struct Cli {
 
 	// GitHub token
 	#[clap(long, short, env = "GITHUB_TOKEN")]
-	token: String,
+	token: Option<String>,
 }
 
 fn main() -> Result<()> {
