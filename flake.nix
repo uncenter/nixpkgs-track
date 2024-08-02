@@ -1,5 +1,5 @@
 {
-  description = "Track pull requests across Nix channels";
+  description = "Track where Nixpkgs pull requests have reached";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 

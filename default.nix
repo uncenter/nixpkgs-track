@@ -27,7 +27,7 @@ rustPlatform.buildRustPackage {
   nativeBuildInputs = [ pkg-config ];
 
   meta = {
-    description = "Track pull requests across Nix channels";
+    description = "Track where Nixpkgs pull requests have reached";
     homepage = "https://github.com/uncenter/nixpkgs-track";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ uncenter ];
