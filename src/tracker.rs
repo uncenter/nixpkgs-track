@@ -1,3 +1,25 @@
+// Partially adapted from https://github.com/getchoo/nixpkgs-tracker-bot.
+
+// Copyright (c) 2024 seth
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 use color_eyre::eyre::Result;
 use etcetera::{choose_base_strategy, BaseStrategy};
 use git2::{Branch, BranchType, Commit, Oid, Reference, Repository};
@@ -38,12 +60,6 @@ impl NixpkgsTracker {
 		Ok(commit)
 	}
 
-	pub fn branch_by_name(&self, name: &str) -> Result<Branch> {
-		Ok(self
-			.repository
-			.find_branch(name, BranchType::Remote)?)
-	}
-
 	pub fn ref_contains_commit(&self, reference: &Reference, commit: &Commit) -> Result<bool> {
 		let head = reference.peel_to_commit()?;
 
@@ -62,9 +78,11 @@ impl NixpkgsTracker {
 
 	pub fn branch_contains_sha(&self, branch_name: &str, commit_sha: &str) -> Result<bool> {
 		let commit = self.commit_by_sha(commit_sha)?;
-		let branch = self.branch_by_name(branch_name)?;
-		let has_pr = self.ref_contains_commit(&branch.into_reference(), &commit)?;
+		let branch = self
+			.repository
+			.find_branch(branch_name, BranchType::Remote)?;
+		let has_pull_request = self.ref_contains_commit(&branch.into_reference(), &commit)?;
 
-		Ok(has_pr)
+		Ok(has_pull_request)
 	}
 }
