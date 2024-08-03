@@ -20,35 +20,45 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{bail, Result};
 use etcetera::{choose_base_strategy, BaseStrategy};
-use git2::{Branch, BranchType, Commit, Oid, Reference, Repository};
-use std::fs;
+use git2::{BranchType, Commit, Oid, Reference, Repository};
+use std::{fs, path::PathBuf};
 
 pub struct NixpkgsTracker {
 	repository: Repository,
 }
 
 impl NixpkgsTracker {
-	pub fn new() -> Result<Self> {
-		let nixpkgs_path = choose_base_strategy()
+	pub fn new(original_path: PathBuf) -> Result<Self> {
+		let original_nixpkgs: Repository = Repository::open(original_path)?;
+
+		let urls: Vec<_> = ["origin", "upstream"]
+			.iter()
+			.filter_map(|&name| {
+				original_nixpkgs
+					.find_remote(name)
+					.ok()
+					.and_then(|r| r.url().map(|s| s.to_owned()))
+			})
+			.collect();
+
+		if !urls.contains(&"https://github.com/NixOS/nixpkgs.git".to_owned()) {
+			bail!("Path must be a Nixpkgs repository");
+		}
+
+		let worktree_path = choose_base_strategy()
 			.unwrap()
 			.cache_dir()
-			.join("nixpkgs-track/nixpkgs");
+			.join("nixpkgs-track");
 
-		let repository = if !nixpkgs_path.exists() {
-			println!("Nixpkgs tracker repository doesn't exist. Cloning...");
-			fs::create_dir_all(&nixpkgs_path)?;
-			Repository::clone("https://github.com/NixOS/nixpkgs", &nixpkgs_path)?
-		} else {
-			println!("Nixpkgs tracker repository already exists. Updating...");
-			let repo = Repository::open(&nixpkgs_path)?;
-			repo.find_remote("origin")?
-				.fetch(&["master"], None, None)?;
-			repo.checkout_head(None)?;
+		let worktree = original_nixpkgs.worktree("nixpkgs-track", &worktree_path, None)?;
 
-			repo
-		};
+		let repository = Repository::open_from_worktree(&worktree)?;
+		repository
+			.find_remote("origin")?
+			.fetch(&["master"], None, None)?;
+		repository.checkout_head(None)?;
 
 		Ok(Self { repository })
 	}
