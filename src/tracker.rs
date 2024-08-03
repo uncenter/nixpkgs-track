@@ -63,17 +63,14 @@ impl NixpkgsTracker {
 	pub fn ref_contains_commit(&self, reference: &Reference, commit: &Commit) -> Result<bool> {
 		let head = reference.peel_to_commit()?;
 
-		// NOTE: we have to check this as `Repository::graph_descendant_of()` (like the name says)
-		// only finds *descendants* of it's parent commit, and will not tell us if the parent commit
-		// *is* the child commit. i have no idea why i didn't think of this, but that's why this
-		// comment is here now
-		let is_head = head.id() == commit.id();
+		// Check if the parent commit is the same as the child/current commit.
+		let contains_commit = head.id() == commit.id() || {
+			// Then check if the child/current commit is a descendant of the parent commit on this reference.
+			self.repository
+				.graph_descendant_of(head.id(), commit.id())?
+		};
 
-		let has_commit = self
-			.repository
-			.graph_descendant_of(head.id(), commit.id())?;
-
-		Ok(has_commit || is_head)
+		Ok(contains_commit)
 	}
 
 	pub fn branch_contains_sha(&self, branch_name: &str, commit_sha: &str) -> Result<bool> {
