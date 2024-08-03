@@ -13,12 +13,7 @@ rustPlatform.buildRustPackage {
   inherit version;
 
   src = ./.;
-  cargoLock = {
-    lockFile = ./Cargo.lock;
-    outputHashes = {
-      "git-tracker-0.2.0" = "sha256-4ah3X7y8bBV/fKQdXJXe3nphqAtnZOpBTG8ZXaoHKcc=";
-    };
-  };
+  cargoLock.lockFile = ./Cargo.lock;
 
   buildInputs = [
     openssl
