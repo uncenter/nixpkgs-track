@@ -22,10 +22,11 @@
 
 use color_eyre::eyre::{bail, Result};
 use etcetera::{choose_base_strategy, BaseStrategy};
-use git2::{BranchType, Commit, Oid, Reference, Repository};
-use std::{fs, path::PathBuf};
+use git2::{BranchType, Commit, Oid, Reference, Repository, WorktreePruneOptions};
+use std::path::PathBuf;
 
 pub struct NixpkgsTracker {
+	source: Repository,
 	repository: Repository,
 }
 
@@ -60,7 +61,7 @@ impl NixpkgsTracker {
 			.fetch(&["master"], None, None)?;
 		repository.checkout_head(None)?;
 
-		Ok(Self { repository })
+		Ok(Self { repository, source: original_nixpkgs })
 	}
 
 	pub fn commit_by_sha(&self, sha: &str) -> Result<Commit> {
@@ -91,5 +92,19 @@ impl NixpkgsTracker {
 		let has_pull_request = self.ref_contains_commit(&branch.into_reference(), &commit)?;
 
 		Ok(has_pull_request)
+	}
+
+	pub fn finish(&self) -> Result<()> {
+		let worktree = self
+			.source
+			.find_worktree("nixpkgs-track")?;
+		worktree.validate()?;
+
+		let mut opts = WorktreePruneOptions::new();
+		opts.working_tree(true);
+
+		worktree.prune(Some(&mut opts))?;
+
+		Ok(())
 	}
 }

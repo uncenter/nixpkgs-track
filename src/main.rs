@@ -87,5 +87,7 @@ fn main() -> Result<()> {
 		println!("{}", table.to_string());
 	}
 
+	tracker.finish()?;
+
 	Ok(())
 }
