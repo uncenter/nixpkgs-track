@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use clap::Parser;
 use color_eyre::eyre::{Ok, Result};
 
@@ -31,10 +29,6 @@ fn display_branch_status(b: &bool) -> String {
 #[command(version, about)]
 struct Cli {
 	pull_request: u64,
-
-	/// Path to a Nixpkgs repository
-	#[arg(short, long, default_value = "./")]
-	path: PathBuf,
 
 	// GitHub token
 	#[clap(long, short, env = "GITHUB_TOKEN")]
