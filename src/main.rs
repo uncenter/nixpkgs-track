@@ -4,7 +4,10 @@ use clap::Parser;
 use color_eyre::eyre::{Ok, Result};
 
 use chrono::Utc;
-use nixpkgs_track::{fetch::fetch_nixpkgs_pull_request, format_seconds_to_time_ago, tracker::NixpkgsTracker};
+use nixpkgs_track::{
+	fetch::{branch_contains_commit, fetch_nixpkgs_pull_request},
+	format_seconds_to_time_ago,
+};
 
 use tabled::{
 	settings::{object::Rows, style::BorderSpanCorrection, Disable, Panel, Style},
@@ -42,8 +45,7 @@ fn main() -> Result<()> {
 	let args = Cli::parse();
 	color_eyre::install()?;
 
-	let tracker = NixpkgsTracker::new(args.path)?;
-	let pull_request = fetch_nixpkgs_pull_request(args.pull_request, args.token)?;
+	let pull_request = fetch_nixpkgs_pull_request(args.pull_request, args.token.as_deref())?;
 
 	let Some(commit_sha) = pull_request.merge_commit_sha else {
 		println!("This pull request is very old. I can't track it!");
@@ -65,9 +67,8 @@ fn main() -> Result<()> {
 
 		let mut branch_statuses: Vec<BranchStatus> = vec![];
 
-		for branch in &["master", "staging", "nixpkgs-unstable", "nixos-unstable-small", "nixos-unstable"] {
-			let full_branch_name = format!("origin/{}", branch);
-			let has_pull_request = tracker.branch_contains_sha(&full_branch_name, &commit_sha)?;
+		for branch in &["master", "staging", "staging-next", "nixpkgs-unstable", "nixos-unstable-small", "nixos-unstable"] {
+			let has_pull_request = branch_contains_commit(branch, &commit_sha, args.token.as_deref())?;
 
 			branch_statuses.push(BranchStatus {
 				branch: branch.to_string(),
@@ -86,8 +87,6 @@ fn main() -> Result<()> {
 			.with(BorderSpanCorrection);
 		println!("{}", table.to_string());
 	}
-
-	tracker.finish()?;
 
 	Ok(())
 }

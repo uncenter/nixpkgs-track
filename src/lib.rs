@@ -1,5 +1,4 @@
 pub mod fetch;
-pub mod tracker;
 
 pub fn format_seconds_to_time_ago(seconds: u64) -> String {
 	fn format_unit(value: u64, unit: &str) -> Option<String> {
