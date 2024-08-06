@@ -11,7 +11,6 @@ use tabled::{
 	settings::{object::Rows, style::BorderSpanCorrection, Disable, Panel, Style},
 	Table, Tabled,
 };
-use yansi::{hyperlink::HyperlinkExt, Paint};
 
 #[derive(Tabled, Debug)]
 #[tabled(rename_all = "PascalCase")]
@@ -39,6 +38,7 @@ fn main() -> Result<()> {
 	let args = Cli::parse();
 	color_eyre::install()?;
 
+	println!("Fetching pull request data...");
 	let pull_request = fetch_nixpkgs_pull_request(args.pull_request, args.token.as_deref())?;
 
 	let Some(commit_sha) = pull_request.merge_commit_sha else {
@@ -49,19 +49,12 @@ fn main() -> Result<()> {
 	if pull_request.merged == false {
 		println!("This pull request hasn't been merged yet!")
 	} else {
-		println!(
-			"Pull request was merged {} ago.",
-			format_seconds_to_time_ago(
-				Utc::now()
-					.signed_duration_since(pull_request.merged_at.unwrap())
-					.num_seconds()
-					.try_into()?
-			)
-		);
+		println!("Fetching branch comparisons...");
 
+		let branches = ["master", "staging", "staging-next", "nixpkgs-unstable", "nixos-unstable-small", "nixos-unstable"];
 		let mut branch_statuses: Vec<BranchStatus> = vec![];
 
-		for branch in &["master", "staging", "staging-next", "nixpkgs-unstable", "nixos-unstable-small", "nixos-unstable"] {
+		for branch in branches {
 			let has_pull_request = branch_contains_commit(branch, &commit_sha, args.token.as_deref())?;
 
 			branch_statuses.push(BranchStatus {
@@ -75,9 +68,19 @@ fn main() -> Result<()> {
 			.with(Style::modern())
 			.with(Disable::row(Rows::first()))
 			.with(Panel::header(format!(
-				"{}",
-				format!("{} - {}", format!("#{}", pull_request.number).bold(), pull_request.title).link(pull_request.html_url)
+				"Merged {} ago ({}).",
+				format_seconds_to_time_ago(
+					Utc::now()
+						.signed_duration_since(pull_request.merged_at.unwrap())
+						.num_seconds()
+						.try_into()?
+				),
+				pull_request
+					.merged_at
+					.unwrap()
+					.to_rfc3339()
 			)))
+			.with(Panel::header(format!("{} ({})", pull_request.title, pull_request.html_url)))
 			.with(BorderSpanCorrection);
 		println!("{}", table.to_string());
 	}
