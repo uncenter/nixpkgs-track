@@ -9,7 +9,7 @@ use nixpkgs_track::{branch_contains_commit, fetch_nixpkgs_pull_request, utils::f
 struct Cli {
 	pull_request: u64,
 
-	// GitHub token
+	/// GitHub token
 	#[clap(long, short, env = "GITHUB_TOKEN")]
 	token: Option<String>,
 }
