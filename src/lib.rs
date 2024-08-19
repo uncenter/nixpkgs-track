@@ -1,38 +1,71 @@
-pub mod fetch;
+pub mod utils;
 
-pub fn format_seconds_to_time_ago(seconds: u64) -> String {
-	fn format_unit(value: u64, unit: &str) -> Option<String> {
-		if value > 0 {
-			Some(format!("{} {}{}", value, unit, if value > 1 { "s" } else { "" }))
-		} else {
-			None
+use chrono::prelude::*;
+use color_eyre::eyre::Result;
+use reqwest::{
+	blocking::{Client, RequestBuilder},
+	StatusCode,
+};
+use serde::Deserialize;
+
+const BASE_API_URL: &str = "https://api.github.com/repos/nixos/nixpkgs";
+
+fn build_request(url: &str, token: Option<&str>) -> RequestBuilder {
+	let mut request = Client::new()
+		.get(url)
+		.header("User-Agent", "nixpkgs-track");
+
+	if let Some(token) = token {
+		request = request.bearer_auth(token);
+	}
+
+	request
+}
+
+pub fn fetch_nixpkgs_pull_request(pull_request: u64, token: Option<&str>) -> Result<PullRequest> {
+	let url = format!("{}/pulls/{}", BASE_API_URL, pull_request);
+	let response = build_request(&url, token)
+		.send()?
+		.json::<PullRequest>()?;
+	Ok(response)
+}
+
+pub fn branch_contains_commit(branch: &str, commit: &str, token: Option<&str>) -> Result<bool> {
+	let url = format!("{}/compare/{}...{}", BASE_API_URL, branch, commit);
+
+	let response = build_request(&url, token).send()?;
+	Ok(match response.status() {
+		StatusCode::NOT_FOUND => false,
+		_ => {
+			let json = response.json::<Comparison>()?;
+			if json.status == "identical" || json.status == "behind" {
+				true
+			} else {
+				false
+			}
 		}
-	}
+	})
+}
 
-	let minutes = seconds / 60;
-	let hours = minutes / 60;
-	let days = hours / 24;
+#[derive(Clone, Debug, Deserialize)]
+pub struct User {
+	pub login: String,
+	pub url: String,
+}
 
-	let remaining_seconds = seconds % 60;
-	let remaining_minutes = minutes % 60;
-	let remaining_hours = hours % 24;
+#[derive(Clone, Debug, Deserialize)]
+pub struct PullRequest {
+	pub html_url: String,
+	pub number: u64,
+	pub title: String,
+	pub user: User,
+	pub created_at: DateTime<Utc>,
+	pub merged_at: Option<DateTime<Utc>>,
+	pub merged: bool,
+	pub merge_commit_sha: Option<String>,
+}
 
-	let mut result: Vec<String> = [
-		format_unit(days, "day"),
-		format_unit(remaining_hours, "hour"),
-		format_unit(remaining_minutes, "minute"),
-		format_unit(remaining_seconds, "second"),
-	]
-	.iter()
-	.filter_map(|x| x.clone())
-	.collect();
-
-	if result.is_empty() {
-		"0 seconds".to_string()
-	} else if result.len() == 1 {
-		result[0].clone()
-	} else {
-		let last = result.pop().unwrap();
-		format!("{} and {}", result.join(" "), last)
-	}
+#[derive(Clone, Debug, Deserialize)]
+pub struct Comparison {
+	pub status: String,
 }
