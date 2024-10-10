@@ -72,15 +72,15 @@ fn check(pull_request: u64, token: Option<&str>) -> Result<()> {
 			.link(pull_request.html_url)
 	);
 
-	let created_at_ago = format_seconds_to_time_ago(
-		Utc::now()
-			.signed_duration_since(pull_request.created_at)
-			.num_seconds()
-			.try_into()?,
-	);
-	let created_at_date = pull_request.created_at.to_rfc3339();
-
 	if pull_request.merged == false {
+		let created_at_ago = format_seconds_to_time_ago(
+			Utc::now()
+				.signed_duration_since(pull_request.created_at)
+				.num_seconds()
+				.try_into()?,
+		);
+		let created_at_date = pull_request.created_at.to_rfc3339();
+
 		println!("This pull request hasn't been merged yet!");
 		println!("Created {} ago ({}).", created_at_ago, created_at_date);
 	} else {
@@ -94,8 +94,16 @@ fn check(pull_request: u64, token: Option<&str>) -> Result<()> {
 			.merged_at
 			.unwrap()
 			.to_rfc3339();
+		let creation_to_merge_time = format_seconds_to_time_ago(
+			pull_request
+				.merged_at
+				.unwrap()
+				.signed_duration_since(pull_request.created_at)
+				.num_seconds()
+				.try_into()?,
+		);
 
-		println!("Merged {} ago ({}), {} after creation ({}).", merged_at_ago, merged_at_date, created_at_ago, created_at_date);
+		println!("Merged {} ago ({}), {} after creation.", merged_at_ago, merged_at_date, creation_to_merge_time);
 
 		for branch in DEFAULT_BRANCHES {
 			let has_pull_request = branch_contains_commit(branch, &commit_sha, token)?;
