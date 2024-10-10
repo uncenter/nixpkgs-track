@@ -28,10 +28,10 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
 	/// Add a pull request to tracking list
-	Add { pull_request: u64 },
+	Add { pull_requests: Vec<u64> },
 	/// Remove a pull request from the tracking list
 	Remove {
-		pull_request: u64,
+		pull_requests: Vec<u64>,
 
 		#[clap(long)]
 		all: bool,
@@ -41,7 +41,7 @@ enum Commands {
 		#[clap(long)]
 		json: bool,
 	},
-	/// Recheck tracked pull requests
+	/// Check tracked pull requests
 	Check {},
 }
 
@@ -122,17 +122,21 @@ fn main() -> Result<()> {
 	let mut cache_data: Cache = if cache.exists() { serde_json::from_str(&fs::read_to_string(&cache)?)? } else { Cache::new() };
 
 	match args.command {
-		Some(Commands::Add { pull_request }) => cache_data
-			.pull_requests
-			.push(pull_request),
-		Some(Commands::Remove { pull_request, all }) => {
+		Some(Commands::Add { pull_requests }) => {
+			cache_data
+				.pull_requests
+				.extend(pull_requests);
+			cache_data.pull_requests.sort_unstable();
+			cache_data.pull_requests.dedup();
+		}
+		Some(Commands::Remove { pull_requests, all }) => {
 			if all {
 				cache_data.pull_requests.clear();
 			} else {
 				cache_data.pull_requests = cache_data
 					.pull_requests
 					.into_iter()
-					.filter(|&x| x != pull_request)
+					.filter(|x| !pull_requests.contains(x))
 					.collect()
 			}
 		}
