@@ -150,6 +150,11 @@ fn main() -> Result<()> {
 			}
 		}
 		Some(Commands::List { json }) => {
+			if cache_data.pull_requests.len() == 0 {
+				println!("No pull requests saved.");
+				return Ok(());
+			}
+
 			#[derive(Serialize, Deserialize)]
 			struct TrackedPullRequest {
 				id: u64,
@@ -184,6 +189,11 @@ fn main() -> Result<()> {
 			)
 		}
 		Some(Commands::Check {}) => {
+			if cache_data.pull_requests.len() == 0 {
+				println!("No pull requests saved.");
+				return Ok(());
+			}
+
 			for (i, pull_request) in cache_data
 				.pull_requests
 				.iter()
