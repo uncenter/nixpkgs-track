@@ -26,7 +26,9 @@ pub fn fetch_nixpkgs_pull_request(pull_request: u64, token: Option<&str>) -> Res
 	let url = format!("{}/pulls/{}", BASE_API_URL, pull_request);
 	let response = build_request(&url, token)
 		.send()?
+		.error_for_status()?
 		.json::<PullRequest>()?;
+
 	Ok(response)
 }
 
