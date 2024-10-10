@@ -65,7 +65,8 @@ fn check(pull_request: u64, token: Option<&str>) -> Result<()> {
 	};
 
 	println!(
-		"{}",
+		"[{}] {}",
+		pull_request.number,
 		pull_request
 			.title
 			.link(pull_request.html_url)
