@@ -171,9 +171,15 @@ fn main() -> Result<()> {
 			)
 		}
 		Some(Commands::Check {}) => {
-			for pull_request in &cache_data.pull_requests {
+			for (i, pull_request) in cache_data
+				.pull_requests
+				.iter()
+				.enumerate()
+			{
 				check(*pull_request, args.token.as_deref())?;
-				println!("---")
+				if i != (cache_data.pull_requests.len() - 1) {
+					println!();
+				}
 			}
 		}
 		None => check(args.pull_request.expect("is present"), args.token.as_deref())?,
