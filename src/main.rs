@@ -56,8 +56,8 @@ impl Cache {
 	}
 }
 
-fn check(pull_request: u64, token: Option<&str>) -> Result<()> {
-	let pull_request = fetch_nixpkgs_pull_request(pull_request, token)?;
+async fn check(pull_request: u64, token: Option<&str>) -> Result<()> {
+	let pull_request = fetch_nixpkgs_pull_request(pull_request, token).await?;
 
 	let Some(commit_sha) = pull_request.merge_commit_sha else {
 		println!("This pull request is very old. I can't track it!");
@@ -105,17 +105,29 @@ fn check(pull_request: u64, token: Option<&str>) -> Result<()> {
 
 		println!("Merged {} ago ({}), {} after creation.", merged_at_ago, merged_at_date, creation_to_merge_time);
 
-		for branch in DEFAULT_BRANCHES {
-			let has_pull_request = branch_contains_commit(branch, &commit_sha, token)?;
+		let branches = DEFAULT_BRANCHES
+			.iter()
+			.map(|branch| {
+				let token_clone = token.map(|t| t.to_owned());
+				let branch_clone = branch.to_string();
+				let commit_sha_clone = commit_sha.clone();
 
-			println!("{}: {}", branch, if has_pull_request { "✅" } else { "🚫" });
+				tokio::spawn(async move { branch_contains_commit(&branch_clone, &commit_sha_clone, token_clone.as_deref()).await })
+			})
+			.collect::<Vec<_>>();
+
+		for (i, branch) in branches.into_iter().enumerate() {
+			let has_pull_request = branch.await??;
+
+			println!("{}: {}", DEFAULT_BRANCHES[i], if has_pull_request { "✅" } else { "🚫" });
 		}
 	}
 
 	Ok(())
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
 	let args = Cli::parse();
 	color_eyre::install()?;
 
@@ -161,19 +173,24 @@ fn main() -> Result<()> {
 				title: String,
 				url: String,
 			}
-			let pull_requests = cache_data
-				.pull_requests
-				.iter()
-				.map(|&pr| {
-					let data = fetch_nixpkgs_pull_request(pr, args.token.as_deref())?;
+
+			impl TrackedPullRequest {
+				async fn new(id: u64, token: Option<&str>) -> Result<Self> {
+					let data = fetch_nixpkgs_pull_request(id, token.as_deref()).await?;
 
 					Ok(TrackedPullRequest {
-						id: pr,
+						id,
 						title: data.title,
 						url: data.html_url,
 					})
-				})
-				.collect::<Result<Vec<_>, _>>()?;
+				}
+			}
+			let mut pull_requests = Vec::new();
+
+			for &pr in &cache_data.pull_requests {
+				let tracked_pr = TrackedPullRequest::new(pr, args.token.as_deref()).await?;
+				pull_requests.push(tracked_pr);
+			}
 
 			println!(
 				"{}",
@@ -199,13 +216,13 @@ fn main() -> Result<()> {
 				.iter()
 				.enumerate()
 			{
-				check(*pull_request, args.token.as_deref())?;
+				check(*pull_request, args.token.as_deref()).await?;
 				if i != (cache_data.pull_requests.len() - 1) {
 					println!();
 				}
 			}
 		}
-		None => check(args.pull_request.expect("is present"), args.token.as_deref())?,
+		None => check(args.pull_request.expect("is present"), args.token.as_deref()).await?,
 	}
 
 	fs::write(&cache, serde_json::to_string(&cache_data)?)?;
