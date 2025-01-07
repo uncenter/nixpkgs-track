@@ -1,4 +1,4 @@
-use core::result;
+use std::fmt::Write;
 use std::fs;
 use std::sync::Arc;
 
@@ -54,10 +54,29 @@ struct Cache {
 
 impl Cache {
 	fn new() -> Self {
-		return Cache { pull_requests: vec![] };
+		Cache { pull_requests: vec![] }
 	}
 }
-use std::fmt::Write;
+
+#[derive(Serialize, Deserialize)]
+struct TrackedPullRequest {
+	id: u64,
+	title: String,
+	url: String,
+}
+
+impl TrackedPullRequest {
+	async fn new(client: impl AsRef<reqwest::Client>, id: u64, token: Option<&str>) -> Result<Self> {
+		let data = fetch_nixpkgs_pull_request(client, id, token).await?;
+
+		Ok(TrackedPullRequest {
+			id,
+			title: data.title,
+			url: data.html_url,
+		})
+	}
+}
+
 async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&str>) -> Result<String> {
 	let mut output = String::new();
 
@@ -68,7 +87,8 @@ async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&s
 		return Ok(output);
 	};
 
-	writeln!(output,
+	writeln!(
+		output,
 		"[{}] {}",
 		pull_request.number,
 		pull_request
@@ -76,18 +96,7 @@ async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&s
 			.link(pull_request.html_url)
 	)?;
 
-	if pull_request.merged == false {
-		let created_at_ago = format_seconds_to_time_ago(
-			Utc::now()
-				.signed_duration_since(pull_request.created_at)
-				.num_seconds()
-				.try_into()?,
-		);
-		let created_at_date = pull_request.created_at.to_rfc3339();
-
-		writeln!(output, "This pull request hasn't been merged yet!")?;
-		writeln!(output, "Created {} ago ({}).", created_at_ago, created_at_date)?;
-	} else {
+	if pull_request.merged {
 		let merged_at_ago = format_seconds_to_time_ago(
 			Utc::now()
 				.signed_duration_since(pull_request.merged_at.unwrap())
@@ -107,35 +116,45 @@ async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&s
 				.try_into()?,
 		);
 
-		writeln!(output, "Merged {} ago ({}), {} after creation.", merged_at_ago, merged_at_date, creation_to_merge_time)?;
+		writeln!(output, "Merged {merged_at_ago} ago ({merged_at_date}), {creation_to_merge_time} after creation.")?;
+
 		let mut branches = tokio::task::JoinSet::new();
 		for (i, branch) in DEFAULT_BRANCHES.iter().enumerate() {
 			let token_clone = token.map(|t| t.to_owned());
-			let branch_clone = branch.to_string();
+			let branch_clone = (*branch).to_string();
 			let commit_sha_clone = commit_sha.clone();
 			let client_clone = client.clone();
 
 			branches.spawn(async move {
-				let result = branch_contains_commit(client_clone, &branch_clone, &commit_sha_clone, token_clone.as_deref())
-					.await
-					.map(|has_pr| format!("{}: {}", branch_clone, if has_pr { "✅" } else { "🚫" }));
+				let result = branch_contains_commit(client_clone, &branch_clone, &commit_sha_clone, token_clone.as_deref()).await;
 				(i, result)
 			});
 		}
 
 		let mut results = branches.join_all().await;
 		results.sort_by_key(|r| r.0);
-		for (_, result) in results {
-			match result {
-				core::result::Result::Ok(result) => {
-					writeln!(output, "{}", result)?;
-				},
-				Err(err) => {
-					writeln!(output, "Error: {}", err)?;
-				}
 
+		for (i, result) in results {
+			match result {
+				Result::Ok(has_pull_request) => {
+					writeln!(output, "{}: {}", DEFAULT_BRANCHES[i], if has_pull_request { "✅" } else { "🚫" })?;
+				}
+				Err(err) => {
+					writeln!(output, "Error: {err}")?;
+				}
 			}
 		}
+	} else {
+		let created_at_ago = format_seconds_to_time_ago(
+			Utc::now()
+				.signed_duration_since(pull_request.created_at)
+				.num_seconds()
+				.try_into()?,
+		);
+		let created_at_date = pull_request.created_at.to_rfc3339();
+
+		writeln!(output, "This pull request hasn't been merged yet!")?;
+		writeln!(output, "Created {created_at_ago} ago ({created_at_date}).")?;
 	}
 
 	Ok(output)
@@ -169,37 +188,17 @@ async fn main() -> Result<()> {
 			if all {
 				cache_data.pull_requests.clear();
 			} else {
-				cache_data.pull_requests = cache_data
+				cache_data
 					.pull_requests
-					.into_iter()
-					.filter(|x| !pull_requests.contains(x))
-					.collect()
+					.retain(|x| !pull_requests.contains(x));
 			}
 		}
 		Some(Commands::List { json }) => {
-			if cache_data.pull_requests.len() == 0 {
+			if cache_data.pull_requests.is_empty() {
 				println!("No pull requests saved.");
 				return Ok(());
 			}
 
-			#[derive(Serialize, Deserialize)]
-			struct TrackedPullRequest {
-				id: u64,
-				title: String,
-				url: String,
-			}
-
-			impl TrackedPullRequest {
-				async fn new(client: impl AsRef<reqwest::Client>, id: u64, token: Option<&str>) -> Result<Self> {
-					let data = fetch_nixpkgs_pull_request(client, id, token.as_deref()).await?;
-
-					Ok(TrackedPullRequest {
-						id,
-						title: data.title,
-						url: data.html_url,
-					})
-				}
-			}
 			let mut pull_requests = tokio::task::JoinSet::new();
 			let client = Arc::new(reqwest::Client::new());
 
@@ -211,7 +210,12 @@ async fn main() -> Result<()> {
 					Ok(tracked_pr)
 				});
 			}
-			let pull_requests = pull_requests.join_all().await.into_iter().filter_map(|x| x.ok()).collect::<Vec<_>>();
+			let pull_requests = pull_requests
+				.join_all()
+				.await
+				.into_iter()
+				.filter_map(std::result::Result::ok)
+				.collect::<Vec<_>>();
 
 			println!(
 				"{}",
@@ -224,38 +228,31 @@ async fn main() -> Result<()> {
 						.collect::<Vec<_>>()
 						.join("\n")
 				}
-			)
+			);
 		}
 		Some(Commands::Check {}) => {
-			if cache_data.pull_requests.len() == 0 {
+			if cache_data.pull_requests.is_empty() {
 				println!("No pull requests saved.");
 				return Ok(());
 			}
 			let mut set = tokio::task::JoinSet::new();
 			let client = Arc::new(reqwest::Client::new());
 
-			for (i, pull_request) in cache_data
-				.pull_requests
-				.iter()
-				.cloned()
-				.enumerate()
-			{
+			for pull_request in cache_data.pull_requests.iter().copied() {
 				let client = client.clone();
 				let token = args.token.clone();
-				let len = cache_data.pull_requests.len();
-				set.spawn(async move {
-					let output = check(client, pull_request, token.as_deref()).await.ok();
-					if let Some(output) = output {
-						println!("{}", output);
-					}
-					if i != (len - 1) {
-						println!();
-					}
-				});
+
+				set.spawn(async move { check(client, pull_request, token.as_deref()).await });
 			}
-			set.join_all().await;
+
+			let results: Result<Vec<String>> = set
+				.join_all()
+				.await
+				.into_iter()
+				.collect();
+			print!("{}", results?.join("\n"));
 		}
-		None => println!("{}", check(Arc::new(reqwest::Client::new()), args.pull_request.expect("is present"), args.token.as_deref()).await?),
+		None => print!("{}", check(Arc::new(reqwest::Client::new()), args.pull_request.expect("is present"), args.token.as_deref()).await?),
 	}
 
 	fs::write(&cache, serde_json::to_string(&cache_data)?)?;

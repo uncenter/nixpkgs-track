@@ -1,14 +1,15 @@
 pub mod utils;
 
 use chrono::prelude::*;
-use color_eyre::eyre::Result;
-use reqwest::{Client, RequestBuilder, StatusCode};
+use color_eyre::eyre::{bail, Result};
+use reqwest::{RequestBuilder, StatusCode};
 use serde::Deserialize;
 
 const BASE_API_URL: &str = "https://api.github.com/repos/nixos/nixpkgs";
 
 fn build_request(client: impl AsRef<reqwest::Client>, url: &str, token: Option<&str>) -> RequestBuilder {
-	let mut request = client.as_ref()
+	let mut request = client
+		.as_ref()
 		.get(url)
 		.header("User-Agent", "nixpkgs-track");
 
@@ -19,34 +20,35 @@ fn build_request(client: impl AsRef<reqwest::Client>, url: &str, token: Option<&
 	request
 }
 
-pub async fn fetch_nixpkgs_pull_request(client:  impl AsRef<reqwest::Client>, pull_request: u64, token: Option<&str>) -> Result<PullRequest> {
-	let url = format!("{}/pulls/{}", BASE_API_URL, pull_request);
+pub async fn fetch_nixpkgs_pull_request(client: impl AsRef<reqwest::Client>, pull_request: u64, token: Option<&str>) -> Result<PullRequest> {
+	let url = format!("{BASE_API_URL}/pulls/{pull_request}");
 	let response = build_request(client, &url, token)
 		.send()
-		.await?
-		.error_for_status()?
-		.json::<PullRequest>()
 		.await?;
 
-	Ok(response)
+	if response.status() == StatusCode::NOT_FOUND {
+		bail!("Pull request {} not found", pull_request);
+	} else if response.status() == StatusCode::FORBIDDEN {
+		let error = response
+			.json::<GitHub403Forbidden>()
+			.await?;
+		bail!("Error: {}", error.message);
+	} else {
+		Ok(response.json::<PullRequest>().await?)
+	}
 }
 
-pub async fn branch_contains_commit(client:  impl AsRef<reqwest::Client>, branch: &str, commit: &str, token: Option<&str>) -> Result<bool> {
-	let url = format!("{}/compare/{}...{}", BASE_API_URL, branch, commit);
+pub async fn branch_contains_commit(client: impl AsRef<reqwest::Client>, branch: &str, commit: &str, token: Option<&str>) -> Result<bool> {
+	let url = format!("{BASE_API_URL}/compare/{branch}...{commit}");
 
-	let response = build_request(client,&url, token)
+	let response = build_request(client, &url, token)
 		.send()
 		.await?;
-	Ok(match response.status() {
-		StatusCode::NOT_FOUND => false,
-		_ => {
-			let json = response.json::<Comparison>().await?;
-			if json.status == "identical" || json.status == "behind" {
-				true
-			} else {
-				false
-			}
-		}
+	Ok(if response.status() == StatusCode::NOT_FOUND {
+		false
+	} else {
+		let json = response.json::<Comparison>().await?;
+		json.status == "identical" || json.status == "behind"
 	})
 }
 
@@ -71,4 +73,10 @@ pub struct PullRequest {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Comparison {
 	pub status: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct GitHub403Forbidden {
+	pub message: String,
+	pub documentation_url: String,
 }
