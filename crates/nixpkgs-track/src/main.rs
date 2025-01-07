@@ -31,13 +31,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-	/// Add a pull request to tracking list
-	Add { pull_requests: Vec<u64> },
-	/// Remove a pull request from the tracking list
+	/// Add pull request(s) to track list
+	Add {
+		#[clap(required(true))]
+		pull_requests: Vec<u64>,
+	},
+	/// Remove pull request(s) from track list
 	Remove {
+		#[clap(required_unless_present("all"))]
 		pull_requests: Vec<u64>,
 
-		#[clap(long)]
+		#[clap(long, conflicts_with = "pull_requests")]
 		all: bool,
 	},
 	/// List tracked pull requests
@@ -283,13 +287,13 @@ pub struct CacheFsError(#[from] std::io::Error);
 #[derive(thiserror::Error, Debug, miette::Diagnostic)]
 pub enum CheckError {
 	#[error("Failed to fetch the pull request.")]
-	#[diagnostic(help("Try again in a few minutes."))]
+	#[diagnostic(help("Is the GitHub authentication token, set by the --token flag or GITHUB_TOKEN environment variable, correct?"))]
 	RequestFailed(#[source] reqwest::Error),
 	#[error("Pull request {0} not found.")]
 	#[diagnostic(help("Are you sure the pull request exists?"))]
 	PullRequestNotFound(u64),
 	#[error("GitHub rate limit was exceeded.")]
-	#[diagnostic(help("You can provide a GitHub token using the --token flag or the GITHUB_TOKEN environment variable."))]
+	#[diagnostic(help("You can provide a GitHub token with the --token flag or GITHUB_TOKEN environment variable."))]
 	RateLimitExceeded,
 	#[error("An error occurred while formatting the output.")]
 	FormatFailed(#[from] std::fmt::Error),
