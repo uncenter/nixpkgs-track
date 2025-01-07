@@ -1,9 +1,5 @@
 {
   lib,
-  darwin,
-  stdenv,
-  openssl,
-  pkg-config,
   rustPlatform,
   version ? "latest",
   ...
@@ -14,12 +10,6 @@ rustPlatform.buildRustPackage {
 
   src = ./.;
   cargoLock.lockFile = ./Cargo.lock;
-
-  buildInputs = [
-    openssl
-  ] ++ lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [ SystemConfiguration ]);
-
-  nativeBuildInputs = [ pkg-config ];
 
   meta = {
     description = "Track where Nixpkgs pull requests have reached";
