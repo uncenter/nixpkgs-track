@@ -10,12 +10,11 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 authors = ["uncenter <uncenter@uncenter.dev>"]
 license = "MIT"
 description = "Track where Nixpkgs pull requests have reached."
 readme = "README.md"
-homepage = "https://github.com/uncenter/nixpkgs-track"
 repository = "https://github.com/uncenter/nixpkgs-track"
 edition = "2021"
 
