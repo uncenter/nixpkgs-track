@@ -1,4 +1,4 @@
-fn format_unit(value: u64, unit: &str) -> Option<String> {
+fn format_unit(value: i64, unit: &str) -> Option<String> {
 	if value > 0 {
 		Some(format!("{} {}{}", value, unit, if value > 1 { "s" } else { "" }))
 	} else {
@@ -6,7 +6,7 @@ fn format_unit(value: u64, unit: &str) -> Option<String> {
 	}
 }
 
-pub fn format_seconds_to_time_ago(seconds: u64) -> String {
+pub fn format_seconds_to_time_ago(seconds: i64) -> String {
 	let minutes = seconds / 60;
 	let hours = minutes / 60;
 	let days = hours / 24;
