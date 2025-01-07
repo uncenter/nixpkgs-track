@@ -1,0 +1,26 @@
+[package]
+name = "nixpkgs-track"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+description.workspace = true
+readme.workspace = true
+repository.workspace = true
+homepage = "https://github.com/uncenter/nixpkgs-track/tree/main/crates/nixpkgs-track"
+keywords = ["cli"]
+categories = ["command-line-utilities"]
+edition.workspace = true
+
+[dependencies]
+chrono = "0.4.39"
+clap = { version = "4.5.23", features = ["derive", "env"] }
+etcetera = "0.8.0"
+serde = "1.0.217"
+yansi = { version = "1.0.1", features = ["hyperlink"] }
+nixpkgs-track_lib = { path = "../nixpkgs-track_lib", features = ["miette"] }
+reqwest = { version = "0.12.12", features = ["json"] }
+tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread", "time"] }
+serde_json = "1.0.135"
+miette = { version = "7.4.0", features = ["fancy"] }
+thiserror = "2.0.9"
+env_logger = "0.11.6"
