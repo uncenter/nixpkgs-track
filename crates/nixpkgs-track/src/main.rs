@@ -7,7 +7,6 @@ use miette::{Context, IntoDiagnostic};
 use serde::{Deserialize, Serialize};
 
 use chrono::Utc;
-use etcetera::{choose_base_strategy, BaseStrategy};
 use yansi::hyperlink::HyperlinkExt;
 
 use nixpkgs_track::utils::format_seconds_to_time_ago;
@@ -134,9 +133,8 @@ async fn main() -> miette::Result<()> {
 
 	let args = Cli::parse();
 
-	let cache_dir = choose_base_strategy()
+	let cache_dir = user_dirs::cache_dir()
 		.into_diagnostic()?
-		.cache_dir()
 		.join("nixpkgs-track");
 	if !cache_dir.exists() {
 		fs::create_dir_all(&cache_dir).map_err(CacheFsError)?;
