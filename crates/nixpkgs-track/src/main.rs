@@ -94,7 +94,7 @@ async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&s
 
 		let mut branches = tokio::task::JoinSet::new();
 		for (i, branch) in DEFAULT_BRANCHES.iter().enumerate() {
-			let token_clone = token.map(|t| t.to_owned());
+			let token_clone = token.map(ToOwned::to_owned);
 			let branch_clone = (*branch).to_string();
 			let commit_sha_clone = commit_sha.clone();
 			let client_clone = client.clone();
@@ -128,6 +128,7 @@ async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&s
 }
 
 #[tokio::main]
+#[allow(clippy::too_many_lines)]
 async fn main() -> miette::Result<()> {
 	env_logger::init();
 
