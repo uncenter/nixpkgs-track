@@ -27,19 +27,27 @@ nix run github:uncenter/nixpkgs-track
 
 ### Cargo
 
+Install from crates.io (recommended):
+
+```sh
+cargo install nixpkgs-track
+```
+
+Or directly from the Git source:
+
 ```sh
 cargo install --git https://github.com/uncenter/nixpkgs-track.git
 ```
 
 ## Usage
 
-The simplest way to track a pull request can be done like so:
+The simplest way to track a pull request is like so:
 
 ```
 nixpkgs-track <PULL_REQUEST>
 ```
 
-Where a `PULL_REQUEST` is the numerical ID of the pull request to track, such as `370713` for [github.com/NixOS/nixpkgs/pull/370713](https://togithub.com/NixOS/nixpkgs/pull/370713).
+Where `PULL_REQUEST` is the numerical ID of the pull request to track, such as `370713` for [github.com/NixOS/nixpkgs/pull/370713](https://togithub.com/NixOS/nixpkgs/pull/370713).
 
 > [!TIP]
 > Provide a GitHub API token with the `--token` option or set it in the `GITHUB_TOKEN` environment variable to avoid rate-limiting.
@@ -52,7 +60,7 @@ Add specified pull request(s) to the list.
 
 ### `remove [<PULL_REQUESTS...> | --all]`
 
-Remove specified pull request(s) from the list, or remove all pull requests from the list with `--all`.
+Remove specified pull request(s) from the list. Remove all pull requests from the list with `--all`.
 
 ### `list`
 
@@ -61,6 +69,14 @@ List tracked pull requests and their metadata.
 ### `check`
 
 Check each tracked pull request. Equivalent to running `nixpkgs-track <PULL_REQUEST>` for each pull request in the list.
+
+## Library
+
+This crate also exports a simple library interface for other programs. This is available as [`nixpkgs-track_lib`](https://crates.io/crates/nixpkgs-track_lib) on crates.io.
+
+The two primary functions are [`nixpkgs_track_lib::fetch_nixpkgs_pull_request`](https://docs.rs/nixpkgs-track_lib/0.2.0/nixpkgs_track_lib/fn.fetch_nixpkgs_pull_request.html) for fetching pull request data from the GitHub API, and [`nixpkgs_track_lib::branch_contains_commit`](https://docs.rs/nixpkgs-track_lib/0.2.0/nixpkgs_track_lib/fn.branch_contains_commit.html) for checking if a commit SHA (such as from a merged pull request: [`PullRequest.merge_commit_sha`](https://docs.rs/nixpkgs-track_lib/0.2.0/nixpkgs_track_lib/struct.PullRequest.html#structfield.merge_commit_sha)) is present in a specified branch on GitHub.
+
+The implementation used for the command line interface can be found at [`crates/nixpkgs-track/src/main.rs`](crates/nixpkgs-track/src/main.rs), under the `check` function. See also [`src/commands/misc/nixpkgs.rs`](https://github.com/isabelroses/blahaj/blob/main/src/commands/misc/nixpkgs.rs) of [@isabelroses](https://github.com/isabelroses)'s [Blåhaj bot for Discord](https://github.com/isabelroses/blahaj).
 
 ## License
 
