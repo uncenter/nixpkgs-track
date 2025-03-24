@@ -17,6 +17,7 @@ static DEFAULT_BRANCHES: [&str; 6] = ["master", "staging", "staging-next", "nixp
 #[derive(Parser)]
 #[command(version, about, subcommand_negates_reqs = true)]
 struct Cli {
+	/// Numerical ID of the pull request to check (e.g. 1234) or a GitHub URL to a pull request (e.g. https://github.com/nixos/nixpkgs/pull/1234).
 	#[clap(required(true), value_parser = parse_pull_request_id)]
 	pull_request: Option<u64>,
 

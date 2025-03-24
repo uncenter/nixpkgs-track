@@ -47,7 +47,7 @@ The simplest way to track a pull request is like so:
 nixpkgs-track <PULL_REQUEST>
 ```
 
-Where `PULL_REQUEST` is the numerical ID of the pull request to track, such as `370713` for [github.com/NixOS/nixpkgs/pull/370713](https://togithub.com/NixOS/nixpkgs/pull/370713).
+Where `PULL_REQUEST` is the numerical ID of the pull request to track, such as `370713` for [github.com/NixOS/nixpkgs/pull/370713](https://togithub.com/NixOS/nixpkgs/pull/370713). You may also provide the full GitHub pull request URL instead of just the numerical ID, with something like `nixpkgs-track https://github.com/NixOS/nixpkgs/pull/370713`.
 
 > [!TIP]
 > Provide a GitHub API token with the `--token` option or set it in the `GITHUB_TOKEN` environment variable to avoid rate-limiting.
