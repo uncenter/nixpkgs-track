@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use chrono::Utc;
 use yansi::hyperlink::HyperlinkExt;
 
-use nixpkgs_track::utils::format_seconds_to_time_ago;
+use nixpkgs_track::utils::{format_seconds_to_time_ago, parse_pull_request_id};
 use nixpkgs_track_lib::{branch_contains_commit, fetch_nixpkgs_pull_request, NixpkgsTrackError};
 
 static DEFAULT_BRANCHES: [&str; 6] = ["master", "staging", "staging-next", "nixpkgs-unstable", "nixos-unstable-small", "nixos-unstable"];
@@ -17,7 +17,7 @@ static DEFAULT_BRANCHES: [&str; 6] = ["master", "staging", "staging-next", "nixp
 #[derive(Parser)]
 #[command(version, about, subcommand_negates_reqs = true)]
 struct Cli {
-	#[clap(required(true))]
+	#[clap(required(true), value_parser = parse_pull_request_id)]
 	pull_request: Option<u64>,
 
 	#[command(subcommand)]
@@ -32,12 +32,12 @@ struct Cli {
 enum Commands {
 	/// Add pull request(s) to track list
 	Add {
-		#[clap(required(true))]
+		#[clap(required(true), value_parser = parse_pull_request_id)]
 		pull_requests: Vec<u64>,
 	},
 	/// Remove pull request(s) from track list
 	Remove {
-		#[clap(required_unless_present("all"))]
+		#[clap(required_unless_present("all"), value_parser = parse_pull_request_id)]
 		pull_requests: Vec<u64>,
 
 		#[clap(long, conflicts_with = "pull_requests")]
