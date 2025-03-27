@@ -22,7 +22,7 @@
         naersk' = pkgs.callPackage naersk { };
       in
       {
-        packages = {
+        packages = rec {
           nixpkgs-track = naersk'.buildPackage {
             pname = "nixpkgs-track";
             src = ./.;
@@ -33,6 +33,7 @@
               openssl
             ];
           };
+          default = nixpkgs-track;
         };
 
         devShell = pkgs.mkShell {
