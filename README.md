@@ -14,9 +14,6 @@ nixos-unstable-small: ✅
 nixos-unstable: ✅
 ```
 
-Originally created as a local and reliable CLI alternative to [Alyssa Ross](https://alyssa.is/)'s [Nixpkgs Pull Request Tracker
-](https://nixpk.gs/pr-tracker.html) website and based by [getchoo/nixpkgs-tracker-bot](https://github.com/getchoo/nixpkgs-tracker-bot). However, nixpkgs-track is now primarily based on the recent [ocfox/nixpkgs-tracker](https://github.com/ocfox/nixpkgs-tracker) project, solely using GitHub's API.
-
 ## Installation
 
 ### Nix
@@ -47,12 +44,12 @@ The simplest way to track a pull request is like so:
 nixpkgs-track <PULL_REQUEST>
 ```
 
-Where `PULL_REQUEST` is the numerical ID of the pull request to track, such as `370713` for [github.com/NixOS/nixpkgs/pull/370713](https://togithub.com/NixOS/nixpkgs/pull/370713). You may also provide the full GitHub pull request URL instead of just the numerical ID, with something like `nixpkgs-track https://github.com/NixOS/nixpkgs/pull/370713`.
+Where `PULL_REQUEST` is either the numerical ID or the GitHub URL of the pull request to track. For example, both `370713` and `https://github.com/NixOS/nixpkgs/pull/370713` are valid references to [github.com/NixOS/nixpkgs/pull/370713](https://togithub.com/NixOS/nixpkgs/pull/370713).
 
 > [!TIP]
-> Provide a GitHub API token with the `--token` option or set it in the `GITHUB_TOKEN` environment variable to avoid rate-limiting.
+> Depending on usage, you may need to provide a GitHub API token to avoid rate-limiting. This can be done with the `--token` option or `GITHUB_TOKEN` environment variable if necessary.
 
-nixpkgs-track also supports saving a list of pull requests to check later on.
+nixpkgs-track also supports saving a list of pull requests to check in the future.
 
 ### `add <PULL_REQUESTS...>`
 
@@ -78,6 +75,9 @@ The two primary functions are [`nixpkgs_track_lib::fetch_nixpkgs_pull_request`](
 
 The implementation used for the command line interface can be found at [`crates/nixpkgs-track/src/main.rs`](crates/nixpkgs-track/src/main.rs), under the `check` function. See also [`src/commands/misc/nixpkgs.rs`](https://github.com/isabelroses/blahaj/blob/main/src/commands/misc/nixpkgs.rs) of [@isabelroses](https://github.com/isabelroses)'s [Blåhaj bot for Discord](https://github.com/isabelroses/blahaj).
 
-## License
+## License & Credit
+
+nixpkgs-track was originally created as a local and reliable CLI alternative to [Alyssa Ross](https://alyssa.is/)'s [Nixpkgs Pull Request Tracker
+](https://nixpk.gs/pr-tracker.html) website and based on [getchoo/nixpkgs-tracker-bot](https://github.com/getchoo/nixpkgs-tracker-bot). Currently though, nixpkgs-track is primarily derived from the recent [ocfox/nixpkgs-tracker](https://github.com/ocfox/nixpkgs-tracker) project.
 
 [MIT](LICENSE)
