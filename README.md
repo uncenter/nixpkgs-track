@@ -18,22 +18,16 @@ nixos-unstable: ✅
 
 ### Nix
 
+`nixpkgs-track` is available in Nixpkgs.
+
 ```
-nix run github:uncenter/nixpkgs-track
+nix run nixpkgs#nixpkgs-track
 ```
 
 ### Cargo
 
-Install from crates.io (recommended):
-
 ```sh
 cargo install nixpkgs-track
-```
-
-Or directly from the Git source:
-
-```sh
-cargo install --git https://github.com/uncenter/nixpkgs-track.git
 ```
 
 ## Usage
