@@ -3,6 +3,7 @@ use std::fs;
 use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
+use dialoguer::MultiSelect;
 use miette::{Context, IntoDiagnostic};
 use serde::{Deserialize, Serialize};
 
@@ -43,6 +44,9 @@ enum Commands {
 
 		#[clap(long, conflicts_with = "pull_requests")]
 		all: bool,
+
+		#[clap(short, long, exclusive = true)]
+		interactive: bool,
 	},
 	/// List tracked pull requests
 	List {
@@ -159,8 +163,34 @@ async fn main() -> miette::Result<()> {
 			cache_data.pull_requests.sort_unstable();
 			cache_data.pull_requests.dedup();
 		}
-		Some(Commands::Remove { pull_requests, all }) => {
-			if all {
+		Some(Commands::Remove { pull_requests, all, interactive }) => {
+			if interactive {
+				let pull_requests = fetch_cached_pull_requests(&cache_data.pull_requests, args.token).await?;
+
+				let selection = MultiSelect::new()
+					.with_prompt("Select pull requests to remove")
+					.report(false)
+					.items(&pull_requests)
+					.interact_opt()
+					.unwrap();
+
+				if let Some(selection) = selection {
+					let selected_pull_requests: Vec<u64> = selection
+						.iter()
+						.map(|&i| pull_requests[i].id)
+						.collect();
+
+					cache_data
+						.pull_requests
+						.retain(|x| !selected_pull_requests.contains(x));
+
+					println!("Selected pull requests ({}) removed.", selection.len());
+				} else {
+					println!("No pull requests selected.");
+					return Ok(());
+				}
+			} else if all {
+				println!("All pull requests ({} total) removed.", cache_data.pull_requests.len());
 				cache_data.pull_requests.clear();
 			} else {
 				cache_data
@@ -169,46 +199,18 @@ async fn main() -> miette::Result<()> {
 			}
 		}
 		Some(Commands::List { json }) => {
-			if cache_data.pull_requests.is_empty() {
-				println!("No pull requests saved.");
-				return Ok(());
-			}
-
-			let mut set = tokio::task::JoinSet::new();
-			let client = Arc::new(reqwest::Client::new());
-
-			for &pr in &cache_data.pull_requests {
-				let token = args.token.clone();
-				let client = client.clone();
-				set.spawn(async move {
-					let tracked_pr = TrackedPullRequest::new(client, pr, token.as_deref()).await?;
-					Ok(tracked_pr)
-				});
-			}
-			let pull_requests: Result<Vec<TrackedPullRequest>, NixpkgsTrackError> = set
-				.join_all()
-				.await
-				.into_iter()
-				.collect();
+			let pull_requests = fetch_cached_pull_requests(&cache_data.pull_requests, args.token).await?;
 
 			println!(
 				"{}",
 				if json {
-					serde_json::to_string(&pull_requests?)
+					serde_json::to_string(&pull_requests)
 						.into_diagnostic()
 						.context("Failed to serialize pull requests to JSON")?
 				} else {
-					pull_requests?
+					pull_requests
 						.iter()
-						.map(|pull_request| {
-							format!(
-								"[{}] {}",
-								&pull_request.id,
-								&pull_request
-									.title
-									.link(&pull_request.url)
-							)
-						})
+						.map(ToString::to_string)
 						.collect::<Vec<_>>()
 						.join("\n")
 				}
@@ -278,6 +280,38 @@ impl TrackedPullRequest {
 			url: data.html_url,
 		})
 	}
+}
+
+impl ToString for TrackedPullRequest {
+	fn to_string(&self) -> String {
+		format!("[{}] {}", &self.id, &self.title.link(&self.url))
+	}
+}
+
+async fn fetch_cached_pull_requests(pull_requests: &[u64], token: Option<String>) -> miette::Result<Vec<TrackedPullRequest>, NixpkgsTrackError> {
+	if pull_requests.is_empty() {
+		println!("No pull requests saved.");
+		return Ok(vec![]);
+	}
+
+	let mut set = tokio::task::JoinSet::new();
+	let client = Arc::new(reqwest::Client::new());
+
+	for &pr in pull_requests {
+		let token = token.clone();
+		let client = client.clone();
+		set.spawn(async move {
+			let tracked_pr = TrackedPullRequest::new(client, pr, token.as_deref()).await?;
+			Ok(tracked_pr)
+		});
+	}
+	let pull_requests: Result<Vec<TrackedPullRequest>, NixpkgsTrackError> = set
+		.join_all()
+		.await
+		.into_iter()
+		.collect();
+
+	pull_requests
 }
 
 #[derive(thiserror::Error, Debug, miette::Diagnostic)]
