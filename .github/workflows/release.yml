@@ -17,8 +17,8 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
     outputs:
-      binary_release_created: ${{ steps.release.outputs['crates/nixpkgs-track--release_created'] == 'true' }}
-      library_release_created: ${{ steps.release.outputs['crates/nixpkgs-track_lib--release_created'] == 'true' }}
+      binary_release_created: ${{ steps.release.outputs['crates/nixpkgs-track--release_created'] }}
+      library_release_created: ${{ steps.release.outputs['crates/nixpkgs-track_lib--release_created'] }}
 
   release-binary:
     runs-on: ubuntu-latest
