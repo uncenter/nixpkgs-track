@@ -18,7 +18,7 @@ nixos-unstable: ✅
 
 ### Nix
 
-`nixpkgs-track` is available in Nixpkgs.
+`nixpkgs-track` is available from Nixpkgs.
 
 ```
 nix run nixpkgs#nixpkgs-track
@@ -49,9 +49,9 @@ nixpkgs-track also supports saving a list of pull requests to check in the futur
 
 Add specified pull request(s) to the list.
 
-### `remove [<PULL_REQUESTS...> | --all]`
+### `remove [<PULL_REQUESTS...> | --all | --interactive]`
 
-Remove specified pull request(s) from the list. Remove all pull requests from the list with `--all`.
+Remove specified pull request(s) from the list. Remove all pull requests from the list with `--all`. Interactively remove pull requests from the list with `--interactive`.
 
 ### `list`
 
