@@ -1,16 +1,10 @@
 [workspace]
-default-members = [
-	"crates/nixpkgs-track"
-]
-members = [
-    "crates/nixpkgs-track",
-	"crates/nixpkgs-track_lib"
-]
+default-members = ["crates/nixpkgs-track"]
+members = ["crates/nixpkgs-track", "crates/nixpkgs-track_lib"]
 resolver = "2"
 
 
 [workspace.package]
-version = "0.2.0"
 authors = ["uncenter <uncenter@uncenter.dev>"]
 license = "MIT"
 description = "Track where Nixpkgs pull requests have reached."
