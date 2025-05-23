@@ -1,0 +1,4 @@
+{
+	"crates/nixpkgs-track": "0.2.0",
+	"crates/nixpkgs-track_lib": "0.2.0"
+}
