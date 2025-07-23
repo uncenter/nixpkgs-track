@@ -42,7 +42,10 @@ pub async fn fetch_nixpkgs_pull_request(client: impl AsRef<reqwest::Client>, pul
 }
 
 pub async fn branch_contains_commit(client: impl AsRef<reqwest::Client>, branch: &str, commit: &str, token: Option<&str>) -> Result<bool, NixpkgsTrackError> {
-	let url = format!("{BASE_API_URL}/compare/{branch}...{commit}");
+	// `per_page=1000000&page=100`: a hack for the API, to _not_ return
+	//   information about files or commits, which we do not need here;
+    //   we only need to know whether it's `ahead` or `behind`
+	let url = format!("{BASE_API_URL}/compare/{branch}...{commit}?per_page=1000000&page=100");
 	let response = build_request(client, &url, token)
 		.send()
 		.await;
