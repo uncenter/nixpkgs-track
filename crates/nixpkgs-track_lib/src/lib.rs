@@ -72,6 +72,7 @@ pub struct User {
 	pub url: String,
 }
 
+#[non_exhaustive]
 #[derive(Clone, Debug, Deserialize)]
 pub struct PullRequest {
 	pub html_url: String,
@@ -82,6 +83,20 @@ pub struct PullRequest {
 	pub merged_at: Option<DateTime<Utc>>,
 	pub merged: bool,
 	pub merge_commit_sha: Option<String>,
+	/// Base branch that the pull request is merged into
+	pub base: ForkBranch,
+	/// Head branch that the pull request is merged from
+	pub head: ForkBranch,
+}
+
+#[non_exhaustive]
+#[derive(Clone, Debug, Deserialize)]
+pub struct ForkBranch {
+	/// Fork and branch name in the format "owner:branch"
+	pub label: String,
+	/// Branch name in a given fork
+	pub r#ref: String,
+	pub sha: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
