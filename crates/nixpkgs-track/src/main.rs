@@ -5,6 +5,7 @@ use std::sync::Arc;
 use clap::{Parser, Subcommand};
 use dialoguer::MultiSelect;
 use miette::{Context, IntoDiagnostic};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use chrono::Utc;
@@ -13,7 +14,8 @@ use yansi::hyperlink::HyperlinkExt;
 use nixpkgs_track::utils::{format_seconds_to_time_ago, parse_pull_request_id};
 use nixpkgs_track_lib::{branch_contains_commit, fetch_nixpkgs_pull_request, NixpkgsTrackError};
 
-static DEFAULT_BRANCHES: [&str; 6] = ["master", "staging", "staging-next", "nixpkgs-unstable", "nixos-unstable-small", "nixos-unstable"];
+static ROLLING_BRANCHES: [&str; 6] = ["staging", "staging-next", "master", "nixpkgs-unstable", "nixos-unstable-small", "nixos-unstable"];
+static STABLE_BRANCHES_TEMPLATE: [&str; 6] = ["staging-XX.XX", "staging-next-XX.XX", "release-XX.XX", "nixpkgs-XX.XX-darwin", "nixos-XX.XX-small", "nixos-XX.XX"];
 
 #[derive(Parser)]
 #[command(version, about, subcommand_negates_reqs = true)]
@@ -93,11 +95,34 @@ async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&s
 				.signed_duration_since(pull_request.created_at)
 				.num_seconds(),
 		);
+		let merged_into_branch = pull_request.base.r#ref;
 
-		writeln!(output, "Merged {merged_at_ago} ago ({merged_at_date}), {creation_to_merge_time} after creation.")?;
+		writeln!(output, "Merged {merged_at_ago} ago ({merged_at_date}), {creation_to_merge_time} after creation, into branch '{merged_into_branch}'.")?;
+
+		let stable_branches: Option<Vec<String>> = if ROLLING_BRANCHES.contains(&merged_into_branch.as_str()) {
+			None
+		} else {
+			// regex for stable version XX.XX
+			let stable_version_regex = Regex::new(r"[0-9]+\.[0-9]+$").unwrap();
+			if let Some(stable_version) = stable_version_regex.find(&merged_into_branch) {
+				let stable_branches = STABLE_BRANCHES_TEMPLATE
+					.iter()
+					.map(|s| s.replace("XX.XX", stable_version.as_str()))
+					.collect();
+				Some(stable_branches)
+			} else {
+				None
+			}
+		};
+
+		#[allow(clippy::redundant_closure_for_method_calls)]
+		let tracked_branches = match stable_branches {
+			Some(ref stable_branches) => stable_branches.iter().map(|s| s.as_str()).collect(),
+			None => Vec::from(ROLLING_BRANCHES),
+		};
 
 		let mut branches = tokio::task::JoinSet::new();
-		for (i, branch) in DEFAULT_BRANCHES.iter().enumerate() {
+		for (i, branch) in tracked_branches.iter().enumerate() {
 			let token_clone = token.map(ToOwned::to_owned);
 			let branch_clone = (*branch).to_string();
 			let commit_sha_clone = commit_sha.clone();
@@ -114,7 +139,7 @@ async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&s
 
 		for (i, result) in results {
 			let has_pull_request = result?;
-			writeln!(output, "{}: {}", DEFAULT_BRANCHES[i], if has_pull_request { "✅" } else { "🚫" })?;
+			writeln!(output, "{}: {}", tracked_branches[i], if has_pull_request { "✅" } else { "🚫" })?;
 		}
 	} else {
 		let created_at_ago = format_seconds_to_time_ago(

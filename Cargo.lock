@@ -903,6 +903,7 @@ dependencies = [
  "env_logger",
  "miette",
  "nixpkgs-track_lib",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
