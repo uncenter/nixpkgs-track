@@ -97,7 +97,10 @@ async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&s
 		);
 		let merged_into_branch = pull_request.base.r#ref;
 
-		writeln!(output, "Merged {merged_at_ago} ago ({merged_at_date}), {creation_to_merge_time} after creation, into branch '{merged_into_branch}'.")?;
+		writeln!(
+			output,
+			"Merged {merged_at_ago} ago ({merged_at_date}), {creation_to_merge_time} after creation, into branch '{merged_into_branch}'."
+		)?;
 
 		let stable_branches: Option<Vec<String>> = if ROLLING_BRANCHES.contains(&merged_into_branch.as_str()) {
 			None
@@ -117,7 +120,10 @@ async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&s
 
 		#[allow(clippy::redundant_closure_for_method_calls)]
 		let tracked_branches = match stable_branches {
-			Some(ref stable_branches) => stable_branches.iter().map(|s| s.as_str()).collect(),
+			Some(ref stable_branches) => stable_branches
+				.iter()
+				.map(|s| s.as_str())
+				.collect(),
 			None => Vec::from(ROLLING_BRANCHES),
 		};
 
