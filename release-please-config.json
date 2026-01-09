@@ -3,7 +3,7 @@
 	"last-release-sha": "f260933c97d5be275d78f98c4d50c4e605905669",
 	"plugins": ["cargo-workspace"],
 	"release-type": "rust",
-	"separate-pull-requests": true,
+	"separate-pull-requests": false,
 	"packages": {
 		"crates/nixpkgs-track": {
 			"include-component-in-tag": false
