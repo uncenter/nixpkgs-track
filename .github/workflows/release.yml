@@ -20,6 +20,12 @@ jobs:
       binary_release_created: ${{ steps.release.outputs['crates/nixpkgs-track--release_created'] }}
       library_release_created: ${{ steps.release.outputs['crates/nixpkgs-track_lib--release_created'] }}
 
+  log:
+    runs-on: ubuntu-latest
+    needs: release-please
+    steps:
+      - run: echo ${{ needs.release-please.outputs }}
+
   release-binary:
     runs-on: ubuntu-latest
     needs: release-please
