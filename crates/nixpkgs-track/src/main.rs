@@ -2,7 +2,6 @@ use std::fmt::Write;
 use std::fs;
 use std::sync::Arc;
 
-use clap::{Parser, Subcommand};
 use dialoguer::MultiSelect;
 use miette::{Context, IntoDiagnostic};
 use regex::Regex;
@@ -11,53 +10,17 @@ use serde::{Deserialize, Serialize};
 use chrono::Utc;
 use yansi::hyperlink::HyperlinkExt;
 
-use nixpkgs_track::utils::{format_seconds_to_time_ago, parse_pull_request_id};
+use clap::Parser;
+
+use nixpkgs_track::{
+	auth::get_github_token,
+	cli::{Cli, Commands},
+	utils::format_seconds_to_time_ago,
+};
 use nixpkgs_track_lib::{branch_contains_commit, fetch_nixpkgs_pull_request, NixpkgsTrackError};
 
 static ROLLING_BRANCHES: [&str; 6] = ["staging", "staging-next", "master", "nixpkgs-unstable", "nixos-unstable-small", "nixos-unstable"];
 static STABLE_BRANCHES_TEMPLATE: [&str; 6] = ["staging-XX.XX", "staging-next-XX.XX", "release-XX.XX", "nixpkgs-XX.XX-darwin", "nixos-XX.XX-small", "nixos-XX.XX"];
-
-#[derive(Parser)]
-#[command(version, about, subcommand_negates_reqs = true)]
-struct Cli {
-	/// Numerical ID of the pull request to check (e.g. 1234) or a GitHub URL to a pull request (e.g. https://github.com/nixos/nixpkgs/pull/1234).
-	#[clap(required(true), value_parser = parse_pull_request_id)]
-	pull_request: Option<u64>,
-
-	#[command(subcommand)]
-	command: Option<Commands>,
-
-	/// GitHub token
-	#[clap(long, short, env = "GITHUB_TOKEN")]
-	token: Option<String>,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-	/// Add pull request(s) to track list
-	Add {
-		#[clap(required(true), value_parser = parse_pull_request_id)]
-		pull_requests: Vec<u64>,
-	},
-	/// Remove pull request(s) from track list
-	Remove {
-		#[clap(required_unless_present("all"), value_parser = parse_pull_request_id)]
-		pull_requests: Vec<u64>,
-
-		#[clap(long, conflicts_with = "pull_requests")]
-		all: bool,
-
-		#[clap(short, long, exclusive = true)]
-		interactive: bool,
-	},
-	/// List tracked pull requests
-	List {
-		#[clap(long)]
-		json: bool,
-	},
-	/// Check tracked pull requests
-	Check {},
-}
 
 async fn check(client: Arc<reqwest::Client>, pull_request: u64, token: Option<&str>) -> miette::Result<String, CheckError> {
 	let mut output = String::new();
@@ -186,6 +149,8 @@ async fn main() -> miette::Result<()> {
 		Cache::new()
 	};
 
+	let token = get_github_token(&args);
+
 	match args.command {
 		Some(Commands::Add { pull_requests }) => {
 			cache_data
@@ -196,7 +161,7 @@ async fn main() -> miette::Result<()> {
 		}
 		Some(Commands::Remove { pull_requests, all, interactive }) => {
 			if interactive {
-				let pull_requests = fetch_cached_pull_requests(&cache_data.pull_requests, args.token).await?;
+				let pull_requests = fetch_cached_pull_requests(&cache_data.pull_requests, token).await?;
 
 				let selection = MultiSelect::new()
 					.with_prompt("Select pull requests to remove")
@@ -230,7 +195,7 @@ async fn main() -> miette::Result<()> {
 			}
 		}
 		Some(Commands::List { json }) => {
-			let pull_requests = fetch_cached_pull_requests(&cache_data.pull_requests, args.token).await?;
+			let pull_requests = fetch_cached_pull_requests(&cache_data.pull_requests, token).await?;
 
 			println!(
 				"{}",
@@ -257,7 +222,7 @@ async fn main() -> miette::Result<()> {
 
 			for pull_request in cache_data.pull_requests.iter().copied() {
 				let client = client.clone();
-				let token = args.token.clone();
+				let token = token.clone();
 
 				set.spawn(async move { check(client, pull_request, token.as_deref()).await });
 			}
@@ -269,7 +234,7 @@ async fn main() -> miette::Result<()> {
 				.collect();
 			print!("{}", results?.join("\n"));
 		}
-		None => print!("{}", check(Arc::new(reqwest::Client::new()), args.pull_request.expect("is present"), args.token.as_deref()).await?),
+		None => print!("{}", check(Arc::new(reqwest::Client::new()), args.pull_request.expect("is present"), token.as_deref()).await?),
 	}
 
 	fs::write(
