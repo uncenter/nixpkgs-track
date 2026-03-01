@@ -41,7 +41,7 @@ nixpkgs-track <PULL_REQUEST>
 Where `PULL_REQUEST` is either the numerical ID or the GitHub URL of the pull request to track. For example, both `370713` and `https://github.com/NixOS/nixpkgs/pull/370713` are valid references to [github.com/NixOS/nixpkgs/pull/370713](https://togithub.com/NixOS/nixpkgs/pull/370713).
 
 > [!TIP]
-> Depending on usage, you may need to provide a GitHub API token to avoid rate-limiting. This can be done with the `--token` option or `GITHUB_TOKEN` environment variable if necessary.
+> Depending on usage (tracking multiple/many pull requests within a span of a few minutes), you may need to provide a GitHub API token to avoid rate-limiting on unauthenticated requests. nixpkgs-track automatically detects the `gh` command-line tool and attempts to retrieve a GitHub token using `gh auth token` when available. Otherwise, a token can be provided via the `GITHUB_TOKEN` environment variable or the `--token` option.
 
 nixpkgs-track also supports saving a list of pull requests to check in the future.
 
