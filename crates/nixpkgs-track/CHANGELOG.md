@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/uncenter/nixpkgs-track/compare/v0.5.0...v0.6.0) (2026-03-01)
+
+
+### Features
+
+* automatically use token from `gh` cli ([#18](https://github.com/uncenter/nixpkgs-track/issues/18)) ([86a08dc](https://github.com/uncenter/nixpkgs-track/commit/86a08dc299728523b735fcb0269e33acadb9cdf4))
+
 ## [0.5.0](https://github.com/uncenter/nixpkgs-track/compare/v0.3.0...v0.5.0) (2026-01-09)
 
 
