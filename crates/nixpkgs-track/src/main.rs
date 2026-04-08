@@ -17,7 +17,7 @@ use nixpkgs_track::{
 	cli::{Cli, Commands},
 	utils::format_seconds_to_time_ago,
 };
-use nixpkgs_track_lib::{branch_contains_commit, fetch_nixpkgs_pull_request, NixpkgsTrackError};
+use nixpkgs_track_lib::{NixpkgsTrackError, branch_contains_commit, fetch_nixpkgs_pull_request};
 
 static ROLLING_BRANCHES: [&str; 6] = ["staging", "staging-next", "master", "nixpkgs-unstable", "nixos-unstable-small", "nixos-unstable"];
 static STABLE_BRANCHES_TEMPLATE: [&str; 6] = ["staging-XX.XX", "staging-next-XX.XX", "release-XX.XX", "nixpkgs-XX.XX-darwin", "nixos-XX.XX-small", "nixos-XX.XX"];
@@ -161,29 +161,31 @@ async fn main() -> miette::Result<()> {
 		}
 		Some(Commands::Remove { pull_requests, all, interactive }) => {
 			if interactive {
-				let pull_requests = fetch_cached_pull_requests(&cache_data.pull_requests, token).await?;
+				if let Some(pull_requests) = fetch_pull_requests(&cache_data.pull_requests, token).await? {
+					let selection = MultiSelect::new()
+						.with_prompt("Select pull requests to remove")
+						.report(false)
+						.items(&pull_requests)
+						.interact_opt()
+						.unwrap();
 
-				let selection = MultiSelect::new()
-					.with_prompt("Select pull requests to remove")
-					.report(false)
-					.items(&pull_requests)
-					.interact_opt()
-					.unwrap();
+					if let Some(selection) = selection
+						&& selection.len() > 0
+					{
+						let selected_pull_requests: Vec<u64> = selection
+							.iter()
+							.map(|&i| pull_requests[i].id)
+							.collect();
 
-				if let Some(selection) = selection {
-					let selected_pull_requests: Vec<u64> = selection
-						.iter()
-						.map(|&i| pull_requests[i].id)
-						.collect();
+						cache_data
+							.pull_requests
+							.retain(|x| !selected_pull_requests.contains(x));
 
-					cache_data
-						.pull_requests
-						.retain(|x| !selected_pull_requests.contains(x));
-
-					println!("Selected pull requests ({}) removed.", selection.len());
-				} else {
-					println!("No pull requests selected.");
-					return Ok(());
+						println!("Selected pull requests ({}) removed.", selection.len());
+					} else {
+						println!("No pull requests selected.");
+						return Ok(());
+					}
 				}
 			} else if all {
 				println!("All pull requests ({} total) removed.", cache_data.pull_requests.len());
@@ -195,22 +197,22 @@ async fn main() -> miette::Result<()> {
 			}
 		}
 		Some(Commands::List { json }) => {
-			let pull_requests = fetch_cached_pull_requests(&cache_data.pull_requests, token).await?;
-
-			println!(
-				"{}",
-				if json {
-					serde_json::to_string(&pull_requests)
-						.into_diagnostic()
-						.context("Failed to serialize pull requests to JSON")?
-				} else {
-					pull_requests
-						.iter()
-						.map(ToString::to_string)
-						.collect::<Vec<_>>()
-						.join("\n")
-				}
-			);
+			if let Some(pull_requests) = fetch_pull_requests(&cache_data.pull_requests, token).await? {
+				println!(
+					"{}",
+					if json {
+						serde_json::to_string(&pull_requests)
+							.into_diagnostic()
+							.context("Failed to serialize pull requests to JSON")?
+					} else {
+						pull_requests
+							.iter()
+							.map(ToString::to_string)
+							.collect::<Vec<_>>()
+							.join("\n")
+					}
+				);
+			}
 		}
 		Some(Commands::Check {}) => {
 			if cache_data.pull_requests.is_empty() {
@@ -284,10 +286,10 @@ impl ToString for TrackedPullRequest {
 	}
 }
 
-async fn fetch_cached_pull_requests(pull_requests: &[u64], token: Option<String>) -> miette::Result<Vec<TrackedPullRequest>, NixpkgsTrackError> {
+async fn fetch_pull_requests(pull_requests: &[u64], token: Option<String>) -> miette::Result<Option<Vec<TrackedPullRequest>>, NixpkgsTrackError> {
 	if pull_requests.is_empty() {
 		println!("No pull requests saved.");
-		return Ok(vec![]);
+		return Ok(None);
 	}
 
 	let mut set = tokio::task::JoinSet::new();
@@ -307,7 +309,7 @@ async fn fetch_cached_pull_requests(pull_requests: &[u64], token: Option<String>
 		.into_iter()
 		.collect();
 
-	pull_requests
+	Ok(Some(pull_requests?))
 }
 
 #[derive(thiserror::Error, Debug, miette::Diagnostic)]
