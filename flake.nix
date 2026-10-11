@@ -24,11 +24,17 @@
             pname = "nixpkgs-track";
             src = ./.;
             nativeBuildInputs = with pkgs; [
+              installShellFiles
               pkg-config
             ];
             buildInputs = with pkgs; [
               openssl
             ];
+            postInstall = ''
+              installShellCompletion \
+                target/release/build/nixpkgs-track-*/out/nixpkgs-track.{bash,fish} \
+                --zsh target/release/build/nixpkgs-track-*/out/_nixpkgs-track
+            '';
           };
           default = self.packages.${system}.nixpkgs-track;
         }

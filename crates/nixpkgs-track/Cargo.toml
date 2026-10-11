@@ -10,6 +10,12 @@ homepage = "https://github.com/uncenter/nixpkgs-track/tree/main/crates/nixpkgs-t
 keywords = ["cli"]
 categories = ["command-line-utilities"]
 edition.workspace = true
+build = "build.rs"
+
+[build-dependencies]
+clap = { version = "4.5.26", features = ["derive", "env"] }
+clap_complete = "4.5.26"
+reqwest = { version = "0.12.12", features = ["json"] }
 
 [dependencies]
 chrono = "0.4.39"

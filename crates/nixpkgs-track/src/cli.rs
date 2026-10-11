@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 
+#[path = "utils.rs"]
+mod utils;
 use crate::utils::parse_pull_request_id;
 
 #[derive(Parser)]
