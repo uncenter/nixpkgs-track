@@ -2,27 +2,24 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     naersk.url = "github:nix-community/naersk";
-    flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
     {
       self,
-      flake-utils,
       naersk,
       nixpkgs,
     }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = (import nixpkgs) {
-          inherit system;
-        };
-
-        naersk' = pkgs.callPackage naersk { };
-      in
-      {
-        packages = rec {
+    let
+      forEachSystem = f: builtins.mapAttrs f nixpkgs.legacyPackages;
+    in
+    {
+      packages = forEachSystem (
+        system: pkgs:
+        let
+          naersk' = pkgs.callPackage naersk { };
+        in
+        {
           nixpkgs-track = naersk'.buildPackage {
             pname = "nixpkgs-track";
             src = ./.;
@@ -33,21 +30,26 @@
               openssl
             ];
           };
-          default = nixpkgs-track;
-        };
+          default = self.packages.${system}.nixpkgs-track;
+        }
+      );
 
-        devShell = pkgs.mkShell {
+      devShell = forEachSystem (
+        system: pkgs:
+        pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
             clippy
             rustfmt
             rust-analyzer
+            cargo
+            rustc
           ];
           inputsFrom = [ self.packages.${system}.nixpkgs-track ];
           env = {
             OPENSSL_NO_VENDOR = 1;
             RUST_SRC_PATH = toString pkgs.rustPlatform.rustLibSrc;
           };
-        };
-      }
-    );
+        }
+      );
+    };
 }
